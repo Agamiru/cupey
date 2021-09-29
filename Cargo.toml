@@ -16,3 +16,4 @@ path = "src/lib.rs"
 
 [dependencies]
 clap = "2.33.3"
+pickledb = "0.4.0"

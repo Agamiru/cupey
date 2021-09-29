@@ -40,9 +40,9 @@ impl<'a> Cupey<'a> {
         let current_dir = env::current_dir()?;
 
         let app = App::new("cupey")
-        .version("0.0.1")
-        .about("Recursively copy files from one folder to another")
-        .author("Chidi Nnadi");
+            .version("0.0.1")
+            .about("Recursively copy files from one folder to another")
+            .author("Chidi Nnadi");
 
         let setup_command = SubCommand::with_name("set-origin")
             .arg(
@@ -154,11 +154,10 @@ impl  Settings {
     pub fn from_file() -> Self {
         let reader = Self::settings_file_lines()
             .map_err(|err| panic!(
-                format!(
                     "Failed to create Cupey object for this reason:\n'{}'",
                     err.to_string()
                 )
-            ));
+            );
         Settings{ reader: Some(reader.unwrap()) }
     }
 
@@ -325,7 +324,7 @@ mod tests {
         assert_eq!(&cupey_inst.unwrap_err().message, "Improperly Configured");
     }
 
-    #[test]
+    // #[test]
     fn test_properly_configured() {
         let cupey_inst = Cupey::new_from([
             "exename", "set-origin", "C:\\Users\\hp\\Desktop\\test_folder"
@@ -335,7 +334,7 @@ mod tests {
     }
 
     // #[test]
-    fn test_write_File() {
+    fn test_write_file() {
         let dest_file_path = Path::new("C:\\Users\\hp\\Desktop\\save.txt");
         let string_to_read = "hi niggaz".to_owned();
         write_from_string(&string_to_read, dest_file_path).unwrap();
