@@ -1,0 +1,3 @@
+Okay this is getting exhausting but we move.
+
+I like writing CLI applications in Rust, do you?
