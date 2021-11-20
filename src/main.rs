@@ -1,6 +1,5 @@
 use Cupey::Cupey;
 
-// use std::process::{exit, Command};
 
 fn main() {
 

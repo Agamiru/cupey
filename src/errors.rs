@@ -47,6 +47,7 @@ impl CupeyError {
     }
 }
 
+// Impelementations
 impl fmt::Display for CupeyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         write!(
@@ -55,6 +56,10 @@ impl fmt::Display for CupeyError {
             self.message, self.error_kind.to_string()
         )
     }
+}
+
+impl std::error::Error for CupeyError {
+    
 }
 
 // Conversions

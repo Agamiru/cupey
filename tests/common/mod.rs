@@ -1,10 +1,12 @@
 use std::path;
 use std::fs;
 use std::env;
+use std::io::{Read, Write};
 
 use Cupey;
 
-
+/// Test utils functions will Panic on errors, they are intended to be simple
+/// and not propagate errors.
 
 
 pub const TEST_FOLDER_NAME: &str = "cupey_test_folder";
@@ -73,4 +75,70 @@ pub fn cupey_test_folder_size() -> u64 {
 
 pub fn cupey_test_folder_count() -> u64 {
     folder_count(cupey_test_folder_path().as_path())
+}
+
+fn get_extension_from_filename(filename: &str) -> Option<&str> {
+    path::Path::new(filename)
+        .extension()
+        .and_then(std::ffi::OsStr::to_str)
+}
+
+pub fn create_txt_file(text: &str, dest_file_path: &path::Path, overwrite: Option<bool>) {
+
+    // Check if file is a text file
+    if let Some(file_extention) = get_extension_from_filename(&dest_file_path.to_str().unwrap()) {
+        if file_extention == "txt" {
+            write_from_string(&text, dest_file_path, overwrite);
+        }
+    }
+}
+
+
+fn write_from_string(string: &str, dest_file_path: &path::Path, overwrite: Option<bool>) {
+    let mut dest_file;
+    
+    match overwrite {
+        // Create new file, fail if exists
+        None => {
+            dest_file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(dest_file_path)
+                .unwrap();
+        },
+        // Create new file, overwrite if exists
+        Some(true) => {
+            dest_file = fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(dest_file_path)
+                .unwrap();
+        },
+        // Create new file, append if exists
+        Some(false) => {
+            dest_file = fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .append(true)
+                .open(dest_file_path)
+                .unwrap();
+        }
+    }
+
+    dest_file.write(string.as_bytes()).unwrap();
+    
+}
+
+pub fn read_to_string(file_path: &path::Path) -> String {
+    let mut string_buffer = String::new();
+
+    let mut file_to_read = fs::OpenOptions::new()
+        .read(true)
+        .open(file_path)
+        .unwrap();
+
+    file_to_read.read_to_string(&mut string_buffer).unwrap();
+
+    string_buffer
 }

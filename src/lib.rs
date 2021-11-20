@@ -2,9 +2,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::env;
-use std::io::{BufRead, Read, Write, BufReader, Lines};
+use std::io::{Read, Write};
 
-use clap::{Arg, SubCommand, App};
+use clap::{Arg, App};
 
 mod errors;
 mod cupey_traits;
@@ -57,6 +57,15 @@ impl<'a> Cupey<'a> {
 
         let app = app.arg(from_arg);
 
+        let overwrite_flag = Arg::with_name("overwrite")
+            .help(
+                    "Overrite all existing files the destination directory that share same name with file being copied."
+                )
+            .long("overwrite")
+            .short("o");
+
+        let app = app.arg(overwrite_flag);
+
         let matches = app.get_matches_from_safe(args)?;
 
         return Ok(Cupey {
@@ -67,13 +76,19 @@ impl<'a> Cupey<'a> {
     pub fn copy_files(&self) -> GeneralResult {
         // from_arg has already been validated, safe to unwrap
         let originating_dir = self.matches.value_of("from_arg").unwrap();
-        visit_dirs(&Path::new(originating_dir), &self.current_dir)?;
+        let overwrite = self.matches.is_present("overwrite");
+        if overwrite {
+            visit_dirs(&Path::new(originating_dir), &self.current_dir, true)?;    
+        } else {
+            visit_dirs(&Path::new(originating_dir), &self.current_dir, false)?;
+        }
+
         Ok(())
     }
 }
 
 
-pub fn visit_dirs(dir: &Path, to_dir: &PathBuf) -> GeneralResult {
+pub fn visit_dirs(dir: &Path, to_dir: &PathBuf, overwrite: bool) -> GeneralResult {
 
     if dir.is_file(){
         let message = format!("'{}' should not be a file", dir.to_str().unwrap());
@@ -82,7 +97,6 @@ pub fn visit_dirs(dir: &Path, to_dir: &PathBuf) -> GeneralResult {
         let message = format!("'{}' should not be a file", to_dir.to_str().unwrap());
         return Err(errors::CupeyError::new(message, errors::ErrorKind::DirIsFile))
     }
-
 
     if empty_dir(dir) {
         let message = format!("This folder '{}' should not be empty", dir.to_str().unwrap());
@@ -108,14 +122,14 @@ pub fn visit_dirs(dir: &Path, to_dir: &PathBuf) -> GeneralResult {
                     fs::create_dir_all(&new_dest_dir)?;
                 }
                 // Recurse through new directory
-                visit_dirs(&entry_path, &new_dest_dir)?;
+                visit_dirs(&entry_path, &new_dest_dir, overwrite)?;
             }
         
         // block for handling files     
         } else {
             // println!("Copying file {:?}", &entry_path);
             let mut new_dest_dir = to_dir.to_owned();
-            copier(&entry_path.to_owned(), &mut new_dest_dir)?;
+            copier(&entry_path.to_owned(), &mut new_dest_dir, overwrite)?;
         }
     }
 
@@ -123,15 +137,32 @@ pub fn visit_dirs(dir: &Path, to_dir: &PathBuf) -> GeneralResult {
 }
 
 // orig_file_path - originating file path
-pub fn copier(orig_file_path: &PathBuf, destination_dir: &mut PathBuf) -> GeneralResult {
+pub fn copier(orig_file_path: &PathBuf, destination_dir: &mut PathBuf, overwrite: bool) -> GeneralResult {
     // Get file name to append to new destination path
     let file_name = orig_file_path.file_name().unwrap();
     destination_dir.push(file_name);
-    
-    // Todo: option to override should be provided from the command line
-    if destination_dir.exists() {
-        // println!("Moving on, file exists: {:?}", &destination_dir);
-        return Ok(())
+    // Change name for readability sakes.
+    let destination_file_path = destination_dir;
+
+    let mut dest_file;
+    if destination_file_path.exists() {
+        // Overwrite existing file 
+        if overwrite {
+            dest_file = fs::OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(destination_file_path)?;
+        } else {
+            println!("Moving on, file exists: {:?}", &destination_file_path);
+            return Ok(())
+        }
+    } else {
+        // Create new file
+        dest_file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(destination_file_path)?;   
     }
 
     let mut file_to_copy = fs::OpenOptions::new()
@@ -139,17 +170,12 @@ pub fn copier(orig_file_path: &PathBuf, destination_dir: &mut PathBuf) -> Genera
         .open(orig_file_path)?;
     
     let mut contents = Vec::new();  // Create Vec<u8> bytes buffer
-
-    let mut dest_file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(destination_dir)?;
-
+    
     file_to_copy.read_to_end(&mut contents)?;
 
     dest_file.write_all(&mut contents)?;
 
-    println!("Copied '{:?}' successfully", orig_file_path.as_path().file_name());
+    println!("Copied {:?} successfully", orig_file_path.as_path().file_name().unwrap());
 
     Ok(())
 }
@@ -157,35 +183,4 @@ pub fn copier(orig_file_path: &PathBuf, destination_dir: &mut PathBuf) -> Genera
 pub fn empty_dir(dir: &Path) -> bool {
     fs::read_dir(dir).into_iter().next().is_none()
 }
-
-
-fn get_extension_from_filename(filename: &str) -> Option<&str> {
-    Path::new(filename)
-        .extension()
-        .and_then(std::ffi::OsStr::to_str)
-}
-
-// fn write_from_string(string: &str, dest_file_path: &Path) -> GeneralResult {
-//     // Check if file is a text file
-//     if let Some(file_extention) = get_extension_from_filename(&dest_file_path.to_str().unwrap()) {
-//         if file_extention != "txt" {
-//             return Err(GenericError::new("Wrong file type, must be a text file")
-//                 .to_boxed_err());
-//         }
-//     } else {
-//         return Err(GenericError::new("Wrong file type, must be a text file")
-//             .to_boxed_err());
-//     }
-    
-//     let mut dest_file = fs::OpenOptions::new()
-//         .write(true)
-//         .create(true)
-//         .open(dest_file_path)?;
-
-//     dest_file.write(string.as_bytes())?;
-    
-//     Ok(())
-// }
-
-
 
