@@ -24,7 +24,7 @@ all existing files in 'python projects' with same name with those from 'rust_pro
 # But Why?
 I needed a tool to 'cupey' some of my Flutter widgets from a folder where I store reusable widgets
 into the folder I needed to use them in. A command line tool would keep me from switching windows when I
-need to perform this task that's why I built it.
+need to perform this task, that's why I built it.
 
 # Todo
 - Add skip feature: Skip some files during copying.
