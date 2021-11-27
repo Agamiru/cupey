@@ -1,54 +1,82 @@
 use std::fmt;
-use std::error::Error;
-// use std::io;
+use std::process;
+use std::io::Write;
+
+use clap;
 
 
 #[derive(Debug)]
-pub struct GenericError(pub String);
+pub enum ErrorKind {
+    OsError,
+    ClapError,
+    DirIsFile,
+    DirEmpty,
+    IoError
+}
 
-impl GenericError {
-    pub fn new(description: &str) -> Self {
-        return GenericError(description.to_owned());
-    }
-
-    pub fn to_boxed_err(&self) -> Box<Self> {
-        Box::new(GenericError::new(&self.0))
+impl fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match *self {
+            ErrorKind::ClapError => write!(f, "Clap Error"),
+            ErrorKind::IoError => write!(f, "IO Error"),
+            ErrorKind::DirEmpty => write!(f, "DirEmpty"),
+            ErrorKind::DirIsFile => write!(f, "DirIsFile"),
+            ErrorKind::OsError => write!(f, "OS Error")
+        }
     }
 }
 
-impl fmt::Display for GenericError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+
+
+#[derive(Debug)]
+pub struct CupeyError {
+    message: String,
+    error_kind: ErrorKind
+}
+
+impl CupeyError {
+    pub fn new(message: String, error_kind: ErrorKind) -> Self {
+        CupeyError { message: message, error_kind: error_kind}
+    }
+
+    pub fn exit(&self) {
+        // Write to stdout before exiting
+        let out = std::io::stdout();
+        writeln!(&mut out.lock(), "{}", self.to_string()).expect("Failed to write to stdout");
+        process::exit(0)
     }
 }
 
-impl Error for GenericError {}
+// Impelementations
+impl fmt::Display for CupeyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(
+            f,
+            "Error Type: {}\nError Message: {}",
+            self.message, self.error_kind.to_string()
+        )
+    }
+}
 
+impl std::error::Error for CupeyError {
+    
+}
 
-// impl From<std::io::Error> for GenericError {
-//     fn from(err: std::io::Error) -> Self {
-//         Self(err.to_string())
-//     }
-// }
+// Conversions
+impl From<std::io::Error> for CupeyError {
+    fn from(err: std::io::Error) -> Self {
+        CupeyError {
+            message: err.to_string(),
+            error_kind: ErrorKind::OsError
+        }
+    }
+}
 
-// impl Into<io::Error> for GenericError {
-//     fn into(self) -> io::Error {
-//         io::Error {
-
-//         }
-//     }
-// }
-
-
-// struct CupeyError {
-//     message: String,
-//     error_kind:
-// }
-
-
-
-
-
-// enum ErrorKind {
-//     io_error(std::io:Error)
-// }
+impl From<clap::Error> for CupeyError {
+    fn from(err: clap::Error) -> Self {
+        CupeyError {
+            message: err.to_string(),
+            error_kind: ErrorKind::ClapError
+        }
+    }
+}
