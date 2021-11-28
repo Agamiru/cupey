@@ -58,9 +58,7 @@ impl fmt::Display for CupeyError {
     }
 }
 
-impl std::error::Error for CupeyError {
-    
-}
+impl std::error::Error for CupeyError {}
 
 // Conversions
 impl From<std::io::Error> for CupeyError {

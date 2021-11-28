@@ -26,7 +26,7 @@ By default, Rust runs tests concurrently on different threads, some of the tests
 interdependent so use the ```--test-threads=1``` flag to run tests synchronoulsy.
 
 ```bash
-cargo test -- --test-threads=1 --show-output
+cargo test -- --test-threads=1
 ```
 
 # But Why?

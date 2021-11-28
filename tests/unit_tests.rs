@@ -1,7 +1,9 @@
 use Cupey;
+use std::borrow::Borrow;
 use std::env;
 use std::fs;
 use std::path;
+use std::panic;
 
 
 mod common;
@@ -44,8 +46,9 @@ fn copier_works() {
     assert!(file_created)
 }
 
-#[test]
-fn copier_overwrite_works() {
+
+fn copier_overwrite_works() -> Result<(), Box<dyn std::error::Error>> {
+
     // create text_file path in current_dir
     let mut cupey_test_folder = common::cupey_test_folder_path();
     let mut orig_file_path = cupey_test_folder.clone();
@@ -55,7 +58,7 @@ fn copier_overwrite_works() {
     common::create_txt_file("camp", &orig_file_path, None);
 
     // dest_file_dir
-    let current_dir = env::current_dir().unwrap();
+    let current_dir = env::current_dir()?;
     let mut dest_file_path = current_dir.clone();
     dest_file_path.push("some_text.txt");
 
@@ -63,40 +66,56 @@ fn copier_overwrite_works() {
     common::create_txt_file("shell", &dest_file_path, None);
 
     // copy newly created file to cupey test folder, which has a similar file with different content
-    Cupey::copier(&mut dest_file_path, &mut cupey_test_folder, true).unwrap();
+    Cupey::copier(&mut dest_file_path, &mut cupey_test_folder, true)?;
 
-    // assert copied file is same with originating file
-    assert_eq!(String::from("shell"), common::read_to_string(&mut dest_file_path));
+    let string_to_read = common::read_to_string(&mut dest_file_path);
 
-    common::clean_up(orig_file_path.as_path());
-    common::clean_up(dest_file_path.as_path());
+    assert_eq!(String::from("shell"), string_to_read);
+
+    Ok(())
 }
 
-// fn copier_skip_works() {
-//     // create text_file path in current_dir
-//     let mut orig_file_path = env::current_dir().unwrap();
-//     orig_file_path.push("some_text.txt");
+#[test]
+fn test_copier_overwrite_works () {
+    // Clean up paths
+    let mut clean_up_paths: Vec<&path::Path> = Vec::new();
 
-//     // create text file in current_dir and write text into it.
-//     common::create_txt_file("shell", &mut orig_file_path, None);
-    
-//     // dest_file_dir
-//     let mut dest_file_dir = common::cupey_test_folder_path();
-//     assert!(dest_file_dir.exists());
+    let mut cupey_test_folder = common::cupey_test_folder_path();
+    cupey_test_folder.push("some_text.txt");
 
-//     // copy newly created file to new directory
-//     Cupey::copier(&mut orig_file_path, &mut dest_file_dir, false).unwrap();
+    clean_up_paths.push(cupey_test_folder.as_path());
 
-//     // check if copy was successful
-//     let mut dest_file_path = dest_file_dir;
-//     println!("{:?}", dest_file_path.as_path());
-//     assert!(dest_file_path.exists());
+    let mut current_dir = env::current_dir().unwrap();
+    current_dir.push("some_text.txt");
 
-//     // overrite content of copied file in new directory
-//     common::create_txt_file("camp", &mut dest_file_path, Some(true));
-    
+    clean_up_paths.push(current_dir.as_path());
 
-// }
+
+
+    let clean_up_closure =  |paths: Vec<&path::Path>| {
+        let _: () = paths.into_iter().map(|path| common::clean_up(path)).collect();
+    };
+
+    match panic::catch_unwind(|| { copier_overwrite_works() }) {
+        // No panics during tests
+        Ok(panic_result) => {
+            match panic_result {
+                Ok(_) => {
+                    clean_up_closure(clean_up_paths);
+                },
+                Err(err) => {
+                    clean_up_closure(clean_up_paths);
+                    panic!("{}", err.to_string())
+                }
+            }
+        },
+        // Panic occured during tests, clean up and panic with the error
+        Err(_) => {
+            clean_up_closure(clean_up_paths);
+            panic!()
+        }
+    }
+}
 
 
 
